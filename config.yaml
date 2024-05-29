@@ -1,0 +1,5 @@
+eth_provider_url: "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID"
+avax_provider_url: "https://api.avax.network/ext/bc/C/rpc"
+eth_glp_contract_address: "0x1aDDD80E6039594eE970E5872D247bf0414C8903"
+avax_glp_contract_address: "0x9e295B5B976a184B14aD8cd72413aD846C299660"
+user_addresses: []
