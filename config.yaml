@@ -2,5 +2,5 @@ arb_provider_url: "https://arb1.arbitrum.io/rpc"
 avax_provider_url: "https://api.avax.network/ext/bc/C/rpc"
 arb_glp_contract_address: "0x1aDDD80E6039594eE970E5872D247bf0414C8903"
 avax_glp_contract_address: "0x9e295B5B976a184B14aD8cd72413aD846C299660"
-api_key: "EX9Z1DHN3Q9SUMS34KXYJUMGZI82RRD35C"  # Your Arbiscan API key
+api_key: ""  # Your Arbiscan API key
 user_addresses: [] # input addresses that we want to continiously monitor
