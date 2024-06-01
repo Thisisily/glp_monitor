@@ -192,12 +192,12 @@ def main():
         </div>
         """, unsafe_allow_html=True)
         
-        st.write(f"Your wallet address: **{user_address}**")
-        st.write(f"On Arbitrum, you hold **{arb_user_balance:.2f} GLP** valued at approximately **{arb_user_balance * arb_glp_price:.2f} USD**.")
-        st.write(f"On Avalanche, you hold **{avax_user_balance:.2f} GLP** valued at approximately **{avax_user_balance * avax_glp_price:.2f} USD**.")
-        st.write(f"Current GLP stats:")
-        st.write(f"Arbitrum - Price: **{arb_glp_price:.2f} USD**, Market Cap: **{arb_aum_in_usdg:.2f} USD**, Supply: **{arb_glp_supply:.2f} GLP**")
-        st.write(f"Avalanche - Price: **{avax_glp_price:.2f} USD**, Market Cap: **{avax_aum_in_usdg:.2f} USD**, Supply: **{avax_glp_supply:.2f} GLP**")
+        # st.write(f"Your wallet address: **{user_address}**")
+        # st.write(f"On Arbitrum, you hold **{arb_user_balance:.2f} GLP** valued at approximately **{arb_user_balance * arb_glp_price:.2f} USD**.")
+        # st.write(f"On Avalanche, you hold **{avax_user_balance:.2f} GLP** valued at approximately **{avax_user_balance * avax_glp_price:.2f} USD**.")
+        # st.write(f"Current GLP stats:")
+        # st.write(f"Arbitrum - Price: **{arb_glp_price:.2f} USD**, Market Cap: **{arb_aum_in_usdg:.2f} USD**, Supply: **{arb_glp_supply:.2f} GLP**")
+        # st.write(f"Avalanche - Price: **{avax_glp_price:.2f} USD**, Market Cap: **{avax_aum_in_usdg:.2f} USD**, Supply: **{avax_glp_supply:.2f} GLP**")
 
 
         tabs = st.tabs(["Arbitrum GLP", "Avalanche GLP", "GLP Value", "Token Composition"])
