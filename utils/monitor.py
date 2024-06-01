@@ -1,9 +1,42 @@
 import logging
 import time
-from .constants import DECIMALS
+from .constants import ARBITRUM_TOKEN_ADDRESS_MAP, AVALANCHE_TOKEN_ADDRESS_MAP, DECIMALS
 import logging
 import requests
 from datetime import datetime
+
+def get_token_prices():
+    """
+    Fetch the current prices of tokens using Chainlink or an external API like CoinGecko.
+    
+    Returns:
+        dict: A dictionary of token prices with token symbols as keys and prices as values.
+    """
+    token_ids = {
+        "USDCe": "usd-coin",
+        "MIM": "magic-internet-money",
+        "USDT": "tether",
+        "UNI": "uniswap",
+        "LINK": "chainlink",
+        "DAI": "dai",
+        "USDC": "usd-coin",
+        "ETH": "ethereum",
+        "BTC": "bitcoin",
+        "FRAX": "frax"
+    }
+
+    coingecko_api_url = "https://api.coingecko.com/api/v3/simple/price"
+    response = requests.get(coingecko_api_url, params={"ids": ",".join(token_ids.values()), "vs_currencies": "usd"})
+    data = response.json()
+
+    token_prices = {symbol: data[token_id]["usd"] for symbol, token_id in token_ids.items()}
+    
+    # Adjust stablecoin prices
+    stablecoins = ["USDCe", "USDT", "DAI", "USDC", "MIM", "FRAX"]
+    for stablecoin in stablecoins:
+        token_prices[stablecoin] = (token_prices[stablecoin] + 1) / 2
+
+    return token_prices
 
 def get_historical_mint_prices(web3, contract, start_block=0, end_block=None, step=2048):
     """
@@ -49,8 +82,6 @@ def get_historical_mint_prices(web3, contract, start_block=0, end_block=None, st
 
     return historical_prices
 
-
-    return historical_prices
 
 def calculate_prices(web3, contract):
     """
@@ -149,6 +180,134 @@ def get_current_redemption_price_via_api(contract_address, api_key, network='arb
     current_redemption_price = 1  # Placeholder value
     return current_redemption_price
 
+
+def get_token_composition_scraping(network='arbitrum'):
+    """
+    Fetch the latest token composition from the GMX stats dashboard using the API.
+
+    Args:
+        network (str): The network to query ('arbitrum' or 'avalanche').
+
+    Returns:
+        dict: A dictionary of token composition with token symbols and their weights.
+    """
+    api_urls = {
+        'arbitrum': "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/gmx-arbitrum-stats/api",
+        'avalanche': "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/gmx-avalanche-stats/api"
+    }
+
+    api_url = api_urls.get(network)
+    if not api_url:
+        raise ValueError(f"Unsupported network: {network}")
+
+    query = """
+    {
+      tokenStats(first: 1000, skip: 0, orderBy: timestamp, orderDirection: desc, where: {period: daily}) {
+        poolAmountUsd
+        timestamp
+        token
+      }
+    }
+    """
+    
+    response = requests.post(api_url, json={'query': query})
+    
+    if response.status_code == 200:
+        data = response.json().get('data', {}).get('tokenStats', [])
+        token_composition = {}
+        for item in data:
+            token = item['token']
+            pool_amount_usd = float(item['poolAmountUsd'])
+            if token in token_composition:
+                token_composition[token] += pool_amount_usd
+            else:
+                token_composition[token] = pool_amount_usd
+        
+        # Normalize the composition weights
+        total_amount = sum(token_composition.values())
+        for token in token_composition:
+            token_composition[token] /= total_amount
+
+        return token_composition
+    else:
+        print(f"Failed to retrieve data: {response.status_code}")
+        return {}
+
+def get_open_positions(network='arbitrum'):
+    """
+    Fetch the current open long and short positions from the GMX dashboard or API.
+    
+    Args:
+        network (str): The network to query ('arbitrum' or 'avalanche').
+
+    Returns:
+        dict: A dictionary of net open positions with token symbols as keys and net positions as values.
+    """
+    # Example fetching from GMX API or dashboard
+    # This is a placeholder implementation
+    open_positions = {
+        "ETH": 1000,  # Positive value indicates net long position
+        "BTC": -500,  # Negative value indicates net short position
+        # Add more tokens as necessary
+    }
+    return open_positions
+
+def adjust_token_weights(token_composition, open_positions):
+    """
+    Adjust token weights based on the net open positions.
+
+    Args:
+        token_composition (dict): The original token composition from the GLP pool.
+        open_positions (dict): The net open positions from the GMX platform.
+
+    Returns:
+        dict: A dictionary of adjusted token weights.
+    """
+    adjusted_weights = token_composition.copy()
+    for token, weight in token_composition.items():
+        net_position = open_positions.get(token, 0)
+        if net_position > 0:
+            adjusted_weights[token] = weight * (1 + net_position / 10000)  # Example adjustment
+        elif net_position < 0:
+            adjusted_weights[token] = weight * (1 - abs(net_position) / 10000)
+    return adjusted_weights
+
+def calculate_wallet_exposure(glp_balance, network='arbitrum'):
+    """
+    Calculate the user's exposure to underlying tokens based on their GLP balance.
+
+    Args:
+        glp_balance (float): The user's GLP balance.
+        network (str): The network to query ('arbitrum' or 'avalanche').
+
+    Returns:
+        dict: A dictionary of token exposure with token symbols and their USD values.
+    """
+    # Fetch the token composition for the specified network
+    token_composition = get_token_composition_scraping(network)
+    
+    # Fetch the current prices of tokens
+    token_prices = get_token_prices()
+
+    # Fetch the current open positions
+    open_positions = get_open_positions(network)
+
+    # Adjust the token weights based on net open positions
+    adjusted_token_composition = adjust_token_weights(token_composition, open_positions)
+
+    # Select the appropriate token address map
+    token_address_map = ARBITRUM_TOKEN_ADDRESS_MAP if network == 'arbitrum' else AVALANCHE_TOKEN_ADDRESS_MAP
+
+    # Calculate the exposure for each token
+    token_exposure = {}
+    for token, weight in adjusted_token_composition.items():
+        token_price = token_prices.get(token, 1)  # Default to 1 if token price is not found
+        token_name = token_address_map.get(token, token)
+        token_exposure[token_name] = glp_balance * weight * token_price
+
+    return token_exposure
+
+
 def get_total_supply(contract):
     """
     Fetch the total supply of GLP.
@@ -164,6 +323,45 @@ def get_total_supply(contract):
     except Exception as e:
         logging.error(f"Error fetching GLP supply: {e}")
         return 0
+
+
+def fetch_glp_data(network='arbitrum'):
+    """
+    Fetch GLP AUM and supply from the subgraph API.
+
+    Args:
+        network (str): The network to query ('arbitrum' or 'avalanche').
+
+    Returns:
+        dict: A dictionary with AUM, supply, and price.
+    """
+    api_urls = {
+        'arbitrum': 'https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/gmx-arbitrum-stats/api',
+        'avalanche': 'https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/gmx-avalanche-stats/api'
+    }
+
+    query = """
+    {
+      glpStats(orderBy: id, orderDirection: desc, first: 1) {
+        aumInUsdg
+        glpSupply
+      }
+    }
+    """
+    
+    response = requests.post(api_urls[network], json={'query': query})
+    data = response.json().get('data', {}).get('glpStats', [])[0]
+
+    aum_in_usdg = float(data['aumInUsdg'])
+    glp_supply = float(data['glpSupply'])
+    price = aum_in_usdg / glp_supply if glp_supply else 0
+
+    return {
+        'aum_in_usdg': aum_in_usdg,
+        'glp_supply': glp_supply,
+        'price': price
+    }
+
 
 def get_user_glp_balance(contract, user_address):
     """

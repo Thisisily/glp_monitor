@@ -1,1 +1,26 @@
+# constants.py
+
 DECIMALS = 18
+
+ARBITRUM_TOKEN_ADDRESS_MAP = {
+    "0x17fc002b466eec40dae837fc4be5c67993ddbd6f": "FRAX",
+    "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f": "WBTC",
+    "0x82af49447d8a07e3bd95bd0d56f35241523fbab1": "ETH",
+    "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1": "DAI",
+    "0xfea7a6a0b346362bf88a9e4a88416b77a57d6c2a": "MIM",
+    "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8": "USDC.e",
+    "0xfa7f8980b0f1e64a2062791cc3b0871572f1f7f0": "UNI",
+    "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": "USDT",
+    "0xaf88d065e77c8cc2239327c5edb3a432268e5831": "USDC",
+    "0xf97f4df75117a78c1a5a0dbb814af92458539fb4": "LINK"
+}
+
+AVALANCHE_TOKEN_ADDRESS_MAP = {
+    "0x130966628846bfd36ff31a822705796e8cb8c18d": "MIM",
+    "0x152b9d0fdc40c096757f570a51e494bd4b943e50": "BTC.b",
+    "0x49d5c2bdffac6ce2bfdb6640f4f80f226bc10bab": "ETH",
+    "0x50b7545627a5162f82a992c33b87adc75187b218": "BTC",
+    "0xa7d7079b0fead91f3e65f86e8915cb59c1a4c664": "USDC.e",
+    "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7": "AVAX",
+    "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e": "USDC"
+}
