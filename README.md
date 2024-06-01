@@ -1,5 +1,6 @@
 # GLP Monitor
-![image](https://github.com/Thisisily/glp_monitor/assets/44399258/6c6fc083-5e00-433f-9be8-cc64fd4ffedd)
+![image](https://github.com/Thisisily/glp_monitor/assets/44399258/7e0619ae-a3ad-44f0-b452-654b43c12935)
+
 
 A Python module to monitor GLP holdings, rewards, and fees for users.
 
