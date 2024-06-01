@@ -71,7 +71,7 @@ def get_historical_mint_prices(web3, contract, start_block=0, end_block=None, st
             })
 
             for log in logs:
-                price = int(log['data'], 16) / (10 ** 18)  # Adjust based on actual token decimals
+                price = int(log['data'], 16) / (10 ** DECIMALS)  # Adjust based on actual token decimals
                 historical_prices.append(price)
 
         except ValueError as e:
@@ -82,6 +82,28 @@ def get_historical_mint_prices(web3, contract, start_block=0, end_block=None, st
 
     return historical_prices
 
+def calculate_average_mint_price(transactions):
+    """
+    Calculate the average mint price of GLP from the user's transactions.
+
+    Args:
+        transactions (list): A list of GLP transactions.
+
+    Returns:
+        float: The weighted average mint price.
+    """
+    total_glp = 0
+    total_cost = 0
+
+    for tx in transactions:
+        if tx['methodId'] == 'mint':
+            glp_amount = float(tx['value']) / (10 ** DECIMALS)  # Adjust for GLP decimals
+            glp_price = float(tx['value']) / glp_amount  # Assuming 'value' is in USD (this may need adjustment)
+            total_glp += glp_amount
+            total_cost += glp_price * glp_amount
+
+    average_mint_price = total_cost / total_glp if total_glp else 0
+    return average_mint_price
 
 def calculate_prices(web3, contract):
     """
@@ -100,18 +122,7 @@ def calculate_prices(web3, contract):
 
     return average_mint_price, current_redemption_price
 
-def get_historical_mint_prices_via_api(contract_address, api_key, network='arbitrum'):
-    """
-    Fetch historical mint prices using the blockchain explorer API.
-
-    Args:
-        contract_address (str): The contract address.
-        api_key (str): The API key for the blockchain explorer.
-        network (str): The network to query ('arbitrum' or 'avalanche').
-
-    Returns:
-        list: A list of historical mint prices.
-    """
+def get_historical_mint_prices_via_api(contract_address, api_key, network='arbitrum', user_address=None):
     historical_prices = []
     base_url = {
         'arbitrum': 'https://api.arbiscan.io/api',
@@ -136,8 +147,16 @@ def get_historical_mint_prices_via_api(contract_address, api_key, network='arbit
 
     if data['status'] == '1':
         for log in data['result']:
-            price = int(log['data'], 16) / (10 ** DECIMALS)  # Adjust based on actual token decimals
-            historical_prices.append(price)
+            if user_address and user_address.lower() not in (log['topics'][1], log['topics'][2]):
+                continue
+            amount = int(log['data'], 16) / (10 ** DECIMALS)
+            price = int(log['data'], 16) / (10 ** DECIMALS)
+            historical_prices.append({
+                'blockNumber': int(log['blockNumber'], 16),
+                'price': price,
+                'amount': amount,
+                'timeStamp': int(log['timeStamp'], 16)
+            })
     else:
         logging.error(f"Error fetching logs: {data['message']}")
 

@@ -10,7 +10,7 @@ asyncio.set_event_loop(loop)
 # Now we can import web3 and other modules
 from utils.config_loader import load_config
 from utils.web3_utils import setup_web3, load_contract
-from utils.monitor import fetch_glp_data, get_total_supply, get_user_glp_balance, calculate_prices_via_api, get_glp_transactions, get_token_composition_scraping, calculate_wallet_exposure
+from utils.monitor import calculate_average_mint_price, fetch_glp_data, get_total_supply, get_user_glp_balance, calculate_prices_via_api, get_glp_transactions, get_token_composition_scraping, calculate_wallet_exposure
 from datetime import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -191,15 +191,23 @@ def main():
             </div>
         </div>
         """, unsafe_allow_html=True)
+        
+        st.write(f"Your wallet address: **{user_address}**")
+        st.write(f"On Arbitrum, you hold **{arb_user_balance:.2f} GLP** valued at approximately **{arb_user_balance * arb_glp_price:.2f} USD**.")
+        st.write(f"On Avalanche, you hold **{avax_user_balance:.2f} GLP** valued at approximately **{avax_user_balance * avax_glp_price:.2f} USD**.")
+        st.write(f"Current GLP stats:")
+        st.write(f"Arbitrum - Price: **{arb_glp_price:.2f} USD**, Market Cap: **{arb_aum_in_usdg:.2f} USD**, Supply: **{arb_glp_supply:.2f} GLP**")
+        st.write(f"Avalanche - Price: **{avax_glp_price:.2f} USD**, Market Cap: **{avax_aum_in_usdg:.2f} USD**, Supply: **{avax_glp_supply:.2f} GLP**")
+
 
         tabs = st.tabs(["Arbitrum GLP", "Avalanche GLP", "GLP Value", "Token Composition"])
         with tabs[0]:
             st.markdown('<div class="subheader">Arbitrum GLP Holdings</div>', unsafe_allow_html=True)
-            cols = st.columns(2)  # Define the columns layout
-            with cols[0]:
+            col1, col2 = st.columns(2)  # Define the columns layout
+            with col1:
                 st.markdown(f'<div class="metric"><label>Total Supply</label><span>{arb_glp_supply:.2f} GLP</span></div>', unsafe_allow_html=True)
                 st.markdown(f'<div class="metric"><label>User Balance</label><span>{arb_user_balance:.2f} GLP</span></div>', unsafe_allow_html=True)
-            with cols[1]:
+            with col2:
                 st.markdown(f'<div class="metric"><label>Mint Price</label><span>{arb_glp_price:.2f} USD</span></div>', unsafe_allow_html=True)
                 st.markdown(f'<div class="metric"><label>Market Cap</label><span>{arb_aum_in_usdg:.2f} USD</span></div>', unsafe_allow_html=True)
 
@@ -209,16 +217,22 @@ def main():
                 df_arb = pd.DataFrame(arb_transactions)
                 df_arb['timeStamp'] = pd.to_datetime(df_arb['timeStamp'], unit='s')
                 df_arb['value'] = df_arb['value'].astype(float) / 10**18
-                df_arb = df_arb.rename(columns={'hash': 'Transaction Hash', 'from': 'From', 'to': 'To', 'value': 'Value (GLP)', 'timeStamp': 'Date'})
+                df_arb = df_arb.rename(columns=({'hash': 'Transaction Hash', 'from': 'From', 'to': 'To', 'value': 'Value (GLP)', 'timeStamp': 'Date'}))
                 st.dataframe(df_arb[['Transaction Hash', 'From', 'To', 'Value (GLP)', 'Date']])
+
+            # Display user's exposure to underlying tokens
+            st.markdown('<div class="subheader">Arbitrum GLP Token Exposure</div>', unsafe_allow_html=True)
+            arb_exposure = calculate_wallet_exposure(arb_user_balance, network='arbitrum')
+            for token, exposure in arb_exposure.items():
+                st.write(f"**{token}:** {exposure:.2f} USD")
 
         with tabs[1]:
             st.markdown('<div class="subheader">Avalanche GLP Holdings</div>', unsafe_allow_html=True)
-            cols = st.columns(2)  # Define the columns layout
-            with cols[0]:
+            col1, col2 = st.columns(2)  # Define the columns layout
+            with col1:
                 st.markdown(f'<div class="metric"><label>Total Supply</label><span>{avax_glp_supply:.2f} GLP</span></div>', unsafe_allow_html=True)
                 st.markdown(f'<div class="metric"><label>User Balance</label><span>{avax_user_balance:.2f} GLP</span></div>', unsafe_allow_html=True)
-            with cols[1]:
+            with col2:
                 st.markdown(f'<div class="metric"><label>Mint Price</label><span>{avax_glp_price:.2f} USD</span></div>', unsafe_allow_html=True)
                 st.markdown(f'<div class="metric"><label>Market Cap</label><span>{avax_aum_in_usdg:.2f} USD</span></div>', unsafe_allow_html=True)
 
@@ -228,18 +242,37 @@ def main():
                 df_avax = pd.DataFrame(avax_transactions)
                 df_avax['timeStamp'] = pd.to_datetime(df_avax['timeStamp'], unit='s')
                 df_avax['value'] = df_avax['value'].astype(float) / 10**18
-                df_avax = df_avax.rename(columns={'hash': 'Transaction Hash', 'from': 'From', 'to': 'To', 'value': 'Value (GLP)', 'timeStamp': 'Date'})
+                df_avax = df_avax.rename(columns=({'hash': 'Transaction Hash', 'from': 'From', 'to': 'To', 'value': 'Value (GLP)', 'timeStamp': 'Date'}))
                 st.dataframe(df_avax[['Transaction Hash', 'From', 'To', 'Value (GLP)', 'Date']])
+
+            # Display user's exposure to underlying tokens
+            st.markdown('<div class="subheader">Avalanche GLP Token Exposure</div>', unsafe_allow_html=True)
+            avax_exposure = calculate_wallet_exposure(avax_user_balance, network='avalanche')
+            for token, exposure in avax_exposure.items():
+                st.write(f"**{token}:** {exposure:.2f} USD")
 
         with tabs[2]:
             st.markdown('<div class="subheader">GLP Value</div>', unsafe_allow_html=True)
-            arb_glp_value = arb_user_balance * arb_glp_price
-            avax_glp_value = avax_user_balance * avax_glp_price
+            arb_glp_value = arb_user_balance * arb_glp_price  # Updated calculation using arb_glp_price
+            avax_glp_value = avax_user_balance * avax_glp_price  # Updated calculation using avax_glp_price
             total_glp_value = arb_glp_value + avax_glp_value
+
+            # Calculate average mint price
+            avg_arb_mint_price = calculate_average_mint_price(arb_transactions)
+            avg_avax_mint_price = calculate_average_mint_price(avax_transactions)
+
+            # Calculate PnL
+            arb_pnl = (arb_glp_price - avg_arb_mint_price) * arb_user_balance
+            avax_pnl = (avax_glp_price - avg_avax_mint_price) * avax_user_balance
+            total_pnl = arb_pnl + avax_pnl
+
             st.markdown('<div class="metric-container">', unsafe_allow_html=True)
             st.markdown(f'<div class="metric"><label>Arbitrum GLP Value</label><span>{arb_glp_value:.2f} USD</span></div>', unsafe_allow_html=True)
             st.markdown(f'<div class="metric"><label>Avalanche GLP Value</label><span>{avax_glp_value:.2f} USD</span></div>', unsafe_allow_html=True)
             st.markdown(f'<div class="metric"><label>Total GLP Value</label><span>{total_glp_value:.2f} USD</span></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric"><label>Average Arbitrum Mint Price</label><span>{avg_arb_mint_price:.2f} USD</span></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric"><label>Average Avalanche Mint Price</label><span>{avg_avax_mint_price:.2f} USD</span></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric"><label>Total PnL</label><span>{total_pnl:.2f} USD</span></div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
         with tabs[3]:
